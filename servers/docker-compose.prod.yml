@@ -1,0 +1,39 @@
+version: '3.8'
+
+# Production docker-compose for EC2 deployment.
+# Images are pulled from Amazon ECR instead of being built locally.
+# ECR_REGISTRY must be set as an environment variable before running:
+#   export ECR_REGISTRY=<account_id>.dkr.ecr.<region>.amazonaws.com
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# On ASG instances this file is written by the user-data bootstrap
+# script with the ECR registry URI already interpolated — no env var needed.
+
+services:
+  service1:
+    image: ${ECR_REGISTRY}/service1:latest
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  service2:
+    image: ${ECR_REGISTRY}/service2:latest
+    ports:
+      - "5001:5001"
+    environment:
+      - FLASK_ENV=production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5001/health')\" || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
