@@ -5,7 +5,7 @@
 # ─── VPC ──────────────────────────────────────────────────────────────────────
 resource "aws_vpc" "main" {
   cidr_block           = var.vpc_cidr
-  enable_dns_hostnames = true  # Required for SSM, ECR public endpoints, and readable instance hostnames
+  enable_dns_hostnames = true # Required for SSM, ECR public endpoints, and readable instance hostnames
   enable_dns_support   = true
 
   tags = {
@@ -21,7 +21,7 @@ resource "aws_subnet" "public" {
   vpc_id                  = aws_vpc.main.id
   cidr_block              = var.public_subnet_cidrs[count.index]
   availability_zone       = data.aws_availability_zones.available.names[count.index]
-  map_public_ip_on_launch = true  # EC2 instances need public IPs to reach ECR without a NAT Gateway
+  map_public_ip_on_launch = true # EC2 instances need public IPs to reach ECR without a NAT Gateway
 
   tags = {
     Name = "${var.project_name}-public-subnet-${count.index + 1}"

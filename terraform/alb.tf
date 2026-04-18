@@ -5,12 +5,12 @@
 # ─── Application Load Balancer ────────────────────────────────────────────────
 resource "aws_lb" "main" {
   name               = "${var.project_name}-alb"
-  internal           = false           # Internet-facing
+  internal           = false # Internet-facing
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb.id]
-  subnets            = aws_subnet.public[*].id  # Span both public subnets / AZs
+  subnets            = aws_subnet.public[*].id # Span both public subnets / AZs
 
-  enable_deletion_protection = false  # Set to true for production; keep false for easy teardown
+  enable_deletion_protection = false # Set to true for production; keep false for easy teardown
 
   tags = {
     Name = "${var.project_name}-alb"
@@ -27,8 +27,8 @@ resource "aws_lb_target_group" "service1" {
 
   health_check {
     enabled             = true
-    path                = "/health"       # Flask /health returns {"status":"healthy"} HTTP 200
-    port                = "traffic-port"  # Use the target group port (5000)
+    path                = "/health"      # Flask /health returns {"status":"healthy"} HTTP 200
+    port                = "traffic-port" # Use the target group port (5000)
     protocol            = "HTTP"
     healthy_threshold   = 2
     unhealthy_threshold = 3
@@ -56,8 +56,8 @@ resource "aws_lb_target_group" "service2" {
 
   health_check {
     enabled             = true
-    path                = "/health"       # Flask /health returns {"status":"healthy"} HTTP 200
-    port                = "traffic-port"  # Use the target group port (5001)
+    path                = "/health"      # Flask /health returns {"status":"healthy"} HTTP 200
+    port                = "traffic-port" # Use the target group port (5001)
     protocol            = "HTTP"
     healthy_threshold   = 2
     unhealthy_threshold = 3
@@ -95,7 +95,7 @@ resource "aws_lb_listener" "http" {
 # Matches both the exact path /service1 and any sub-path /service1/...
 resource "aws_lb_listener_rule" "service1" {
   listener_arn = aws_lb_listener.http.arn
-  priority     = 100  # Lower number = evaluated first
+  priority     = 100 # Lower number = evaluated first
 
   action {
     type             = "forward"

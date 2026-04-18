@@ -12,9 +12,9 @@ asg_max_size         = 4
 scale_out_cpu_threshold = 50
 
 enable_public_tls = true
-public_domain     = "example.com"      // REPLACE: Route 53 zone you own
+public_domain     = "example.com" // REPLACE: Route 53 zone you own
 public_subdomain  = "staging.api"
 enable_waf        = true
 
-alert_email        = "alerts-staging@example.com"  // REPLACE
+alert_email        = "alerts-staging@example.com" // REPLACE
 log_retention_days = 30

@@ -61,8 +61,8 @@ variable "ami_id" {
         --query 'sort_by(Images,&CreationDate)[-1].ImageId' \
         --output text --region ap-south-1
   EOT
-  type    = string
-  default = "ami-0f58b397bc5c1f2e8" # Ubuntu 24.04 LTS — ap-south-1 (verify before use)
+  type        = string
+  default     = "ami-0f58b397bc5c1f2e8" # Ubuntu 24.04 LTS — ap-south-1 (verify before use)
 }
 
 variable "service1_port" {

@@ -35,7 +35,7 @@ locals {
 # ─── Launch Template ──────────────────────────────────────────────────────────
 resource "aws_launch_template" "main" {
   name_prefix   = "${var.project_name}-lt-"
-  image_id      = data.aws_ami.ubuntu_24_04.id  # Auto-fetched latest Ubuntu 24.04 for the region
+  image_id      = data.aws_ami.ubuntu_24_04.id # Auto-fetched latest Ubuntu 24.04 for the region
   instance_type = var.ec2_instance_type
   key_name      = var.ec2_key_name
 
@@ -47,7 +47,7 @@ resource "aws_launch_template" "main" {
   }
 
   network_interfaces {
-    associate_public_ip_address = true   # Needed to reach ECR without NAT Gateway
+    associate_public_ip_address = true # Needed to reach ECR without NAT Gateway
     security_groups             = [aws_security_group.ec2.id]
     delete_on_termination       = true
   }
@@ -55,10 +55,10 @@ resource "aws_launch_template" "main" {
   block_device_mappings {
     device_name = "/dev/sda1"
     ebs {
-      volume_size           = 20          # GB — sufficient for OS + Docker images
-      volume_type           = "gp3"       # Better performance/cost than gp2
+      volume_size           = 20    # GB — sufficient for OS + Docker images
+      volume_type           = "gp3" # Better performance/cost than gp2
       delete_on_termination = true
-      encrypted             = true        # Encrypt at rest
+      encrypted             = true # Encrypt at rest
     }
   }
 
@@ -106,7 +106,7 @@ resource "aws_autoscaling_group" "main" {
   # Use ELB health checks — ALB health checks determine whether an instance is healthy,
   # replacing EC2 status checks (which only detect OS-level failures)
   health_check_type         = "ELB"
-  health_check_grace_period = 180  # Seconds to wait after launch before checking (allow containers to start)
+  health_check_grace_period = 180 # Seconds to wait after launch before checking (allow containers to start)
 
   launch_template {
     id      = aws_launch_template.main.id
@@ -120,7 +120,7 @@ resource "aws_autoscaling_group" "main" {
   instance_refresh {
     strategy = "Rolling"
     preferences {
-      min_healthy_percentage = 50  # Keep at least 1 instance healthy during refresh
+      min_healthy_percentage = 50 # Keep at least 1 instance healthy during refresh
     }
   }
 
@@ -151,20 +151,20 @@ resource "aws_autoscaling_policy" "scale_out" {
   name                   = "${var.project_name}-scale-out"
   autoscaling_group_name = aws_autoscaling_group.main.name
   adjustment_type        = "ChangeInCapacity"
-  scaling_adjustment     = 1       # Add 1 instance per alarm trigger
-  cooldown               = 300     # 5-minute cooldown before the next scale-out can happen
+  scaling_adjustment     = 1   # Add 1 instance per alarm trigger
+  cooldown               = 300 # 5-minute cooldown before the next scale-out can happen
   policy_type            = "SimpleScaling"
 }
 
 resource "aws_cloudwatch_metric_alarm" "cpu_high" {
   alarm_name          = "${var.project_name}-cpu-high"
   comparison_operator = "GreaterThanThreshold"
-  evaluation_periods  = 1           # 1 × 5-minute period = triggers after 5 minutes
+  evaluation_periods  = 1 # 1 × 5-minute period = triggers after 5 minutes
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
-  period              = 300         # 5-minute periods — free tier (standard monitoring)
+  period              = 300 # 5-minute periods — free tier (standard monitoring)
   statistic           = "Average"
-  threshold           = var.scale_out_cpu_threshold  # 40%
+  threshold           = var.scale_out_cpu_threshold # 40%
   alarm_description   = "Trigger scale-out when average CPU > ${var.scale_out_cpu_threshold}% for 5 minutes (free tier: standard monitoring)"
   treat_missing_data  = "notBreaching"
 
@@ -185,7 +185,7 @@ resource "aws_autoscaling_policy" "scale_in" {
   name                   = "${var.project_name}-scale-in"
   autoscaling_group_name = aws_autoscaling_group.main.name
   adjustment_type        = "ChangeInCapacity"
-  scaling_adjustment     = -1      # Remove 1 instance per alarm trigger
+  scaling_adjustment     = -1 # Remove 1 instance per alarm trigger
   cooldown               = 300
   policy_type            = "SimpleScaling"
 }
@@ -193,12 +193,12 @@ resource "aws_autoscaling_policy" "scale_in" {
 resource "aws_cloudwatch_metric_alarm" "cpu_low" {
   alarm_name          = "${var.project_name}-cpu-low"
   comparison_operator = "LessThanThreshold"
-  evaluation_periods  = 2           # 2 × 5-minute periods = 10 minutes of low CPU
+  evaluation_periods  = 2 # 2 × 5-minute periods = 10 minutes of low CPU
   metric_name         = "CPUUtilization"
   namespace           = "AWS/EC2"
-  period              = 300         # 5-minute periods — free tier
+  period              = 300 # 5-minute periods — free tier
   statistic           = "Average"
-  threshold           = 20          # Scale in when CPU drops below 20%
+  threshold           = 20 # Scale in when CPU drops below 20%
   alarm_description   = "Trigger scale-in when average CPU < 20% for 10 minutes"
   treat_missing_data  = "notBreaching"
 
