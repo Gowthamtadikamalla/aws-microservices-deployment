@@ -7,8 +7,10 @@ name: cd
 #     so no long-lived AWS access keys are stored in GitHub Secrets.
 #   - Gated by GitHub Environments (dev -> staging -> prod) for manual approval
 #     on sensitive stages.
-#   - Pull requests only produce a terraform plan; merges to main run the real
-#     deploy. This mirrors the "plan in PR, apply on merge" pattern.
+#   - Triggered manually via workflow_dispatch so deploys happen only when a
+#     human selects a target environment. To auto-deploy on merge to main,
+#     add a `push: branches: [main]` trigger and optionally a pull_request
+#     trigger that runs only terraform-plan.
 #
 # Required GitHub Environment variables per target environment:
 #   AWS_DEPLOY_ROLE_ARN     IAM role the pipeline assumes via OIDC
@@ -18,10 +20,6 @@ name: cd
 # require manual approval before apply.
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
   workflow_dispatch:
     inputs:
       environment:
@@ -42,7 +40,6 @@ env:
 jobs:
   build-and-push:
     name: Build and push images to ECR
-    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment: ${{ github.event.inputs.environment || 'dev' }}
     strategy:
@@ -122,7 +119,6 @@ jobs:
 
   terraform-apply:
     name: Terraform apply
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     needs: [build-and-push, terraform-plan]
     runs-on: ubuntu-latest
     # Environments in GitHub should be configured with required reviewers for
