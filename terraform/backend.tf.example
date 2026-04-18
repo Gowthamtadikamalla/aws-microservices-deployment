@@ -1,0 +1,16 @@
+// terraform/backend.tf.example
+// Copy to backend.tf (or pass -backend-config flags) to use a remote state
+// backend. Separate state file per environment enforces blast-radius isolation
+// and allows CI to run plan/apply per environment in parallel.
+
+terraform {
+  backend "s3" {
+    # Pre-created by a bootstrap module: versioned, KMS-encrypted, public
+    # access blocked, with a matching DynamoDB table for state locking.
+    bucket         = "REPLACE-ME-tfstate-bucket"
+    key            = "microservices-deployment/<env>/terraform.tfstate"
+    region         = "ap-south-1"
+    dynamodb_table = "REPLACE-ME-tfstate-locks"
+    encrypt        = true
+  }
+}

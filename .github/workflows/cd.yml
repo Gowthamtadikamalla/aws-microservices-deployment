@@ -1,0 +1,160 @@
+name: cd
+
+# Deployment workflow for the two microservices and the AWS infrastructure.
+#
+# Design notes:
+#   - Uses OIDC (aws-actions/configure-aws-credentials with role-to-assume),
+#     so no long-lived AWS access keys are stored in GitHub Secrets.
+#   - Gated by GitHub Environments (dev -> staging -> prod) for manual approval
+#     on sensitive stages.
+#   - Pull requests only produce a terraform plan; merges to main run the real
+#     deploy. This mirrors the "plan in PR, apply on merge" pattern.
+#
+# Required GitHub Environment variables per target environment:
+#   AWS_DEPLOY_ROLE_ARN     IAM role the pipeline assumes via OIDC
+#   TF_STATE_BUCKET         S3 bucket holding the remote Terraform state
+#   TF_STATE_LOCK_TABLE     DynamoDB table used for state locking
+# All three are wired through GitHub Environments so staging and prod can
+# require manual approval before apply.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: dev
+        type: choice
+        options: [dev, staging, prod]
+
+permissions:
+  id-token: write   # Required for OIDC
+  contents: read
+
+env:
+  AWS_REGION: ap-south-1
+  TF_VERSION: 1.9.5
+
+jobs:
+  build-and-push:
+    name: Build and push images to ECR
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    strategy:
+      matrix:
+        service: [service1, service2]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}   # placeholder
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: servers/${{ matrix.service }}
+          platforms: linux/amd64
+          push: true
+          # Immutable per-commit tag + mutable :latest for iterative development.
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/${{ matrix.service }}:${{ github.sha }}
+            ${{ steps.ecr.outputs.registry }}/${{ matrix.service }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  terraform-plan:
+    name: Terraform plan
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=microservices-deployment/${{ github.event.inputs.environment || 'dev' }}/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ vars.TF_STATE_LOCK_TABLE }}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform plan
+        run: |
+          terraform plan \
+            -var-file="environments/${{ github.event.inputs.environment || 'dev' }}.tfvars" \
+            -out=tfplan
+
+      - name: Upload plan artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tfplan-${{ github.event.inputs.environment || 'dev' }}
+          path: terraform/tfplan
+          retention-days: 7
+
+  terraform-apply:
+    name: Terraform apply
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [build-and-push, terraform-plan]
+    runs-on: ubuntu-latest
+    # Environments in GitHub should be configured with required reviewers for
+    # staging and prod so this job blocks on manual approval.
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+
+      - name: Terraform init
+        run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="key=microservices-deployment/${{ github.event.inputs.environment || 'dev' }}/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="dynamodb_table=${{ vars.TF_STATE_LOCK_TABLE }}" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform apply
+        run: |
+          terraform apply -auto-approve \
+            -var-file="environments/${{ github.event.inputs.environment || 'dev' }}.tfvars"

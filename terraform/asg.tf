@@ -19,10 +19,16 @@ locals {
 #   6. Schedule ECR token refresh every 6 hours (tokens expire in 12 h)
 locals {
   user_data = base64encode(templatefile("${path.module}/user_data.tpl", {
-    aws_region   = var.aws_region
-    ecr_registry = local.ecr_registry
-    service1_image = "${local.ecr_registry}/service1:latest"
-    service2_image = "${local.ecr_registry}/service2:latest"
+    aws_region        = var.aws_region
+    ecr_registry      = local.ecr_registry
+    service1_image    = "${local.ecr_registry}/service1:latest"
+    service2_image    = "${local.ecr_registry}/service2:latest"
+    log_group_name    = aws_cloudwatch_log_group.services.name
+    ssm_log_level     = aws_ssm_parameter.log_level.name
+    ssm_feature_flags = aws_ssm_parameter.feature_flags.name
+    app_secret_arn    = aws_secretsmanager_secret.app_config.arn
+    project_name      = var.project_name
+    environment       = var.environment
   }))
 }
 

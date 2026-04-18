@@ -1,15 +1,38 @@
 # Terraform
 .terraform/
 *.tfstate
-*.tfstate.backup
-*.tfstate.lock.info
-.terraform.lock.hcl
+*.tfstate.*
+*.tfplan
+tfplan
 crash.log
 override.tf
 override.tf.json
+*_override.tf
+*_override.tf.json
+.terraform.lock.hcl
 
-# macOS
+# Local-only Terraform backend / secrets
+terraform/backend.tf
+terraform/*.auto.tfvars
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Editors / OS
 .DS_Store
+.Rhistory
+.idea/
+.vscode/
+*.swp
 
-# Word temp files
-~$*
+# Secrets
+*.pem
+*.key
+.env
+.env.*
+!*.env.example

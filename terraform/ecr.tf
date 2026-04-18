@@ -6,6 +6,7 @@
 resource "aws_ecr_repository" "service1" {
   name                 = "service1"
   image_tag_mutability = "MUTABLE"  # Allows overwriting :latest on each push
+  force_delete         = true       # Allows deletion even when images exist
 
   image_scanning_configuration {
     scan_on_push = true  # Free basic CVE scanning on every push
@@ -40,6 +41,7 @@ resource "aws_ecr_lifecycle_policy" "service1" {
 resource "aws_ecr_repository" "service2" {
   name                 = "service2"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true       # Allows deletion even when images exist
 
   image_scanning_configuration {
     scan_on_push = true
